@@ -1,0 +1,274 @@
+---
+layout: page
+title: Search
+toc: false
+---
+
+搜索
+
+使用搜索功能来查找您感兴趣的内容。支持搜索标题、摘要、标签、分类和文章内容。
+
+---
+
+搜索框
+
+<div style="max-width: 600px; margin: 2rem auto;">
+  <div class="search-box-inline" style="display: flex; align-items: center; border: 2px solid #ddd; border-radius: 8px; padding: 0.75rem 1rem; background: #fff;">
+    <i class="fas fa-search" style="color: #999; margin-right: 0.75rem;"></i>
+    <input type="text" id="search-input" placeholder="输入关键词搜索论文、文章..." style="flex: 1; border: none; outline: none; font-size: 1rem; color: #000;" />
+    <button id="search-clear" style="background: none; border: none; cursor: pointer; display: none;">
+      <i class="fas fa-times" style="color: #999;"></i>
+    </button>
+  </div>
+</div>
+
+---
+
+搜索结果
+
+<div id="search-results" style="min-height: 200px;">
+  <p style="color: #999; text-align: center; padding: 2rem;">请输入关键词开始搜索</p>
+</div>
+
+<style>
+.search-result-item {
+  margin-bottom: 1.5rem;
+  padding: 1.5rem;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  background: #fafafa;
+  transition: all 0.3s ease;
+}
+
+.search-result-item:hover {
+  border-color: #007bff;
+  box-shadow: 0 2px 8px rgba(0, 123, 255, 0.15);
+  transform: translateY(-2px);
+}
+
+.search-result-title {
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+}
+
+.search-result-title a {
+  text-decoration: none;
+  color: #333;
+}
+
+.search-result-title a:hover {
+  color: #007bff;
+}
+
+.search-result-meta {
+  font-size: 0.875rem;
+  color: #666;
+  margin-bottom: 0.75rem;
+}
+
+.search-result-meta span {
+  margin-right: 1rem;
+}
+
+.search-result-excerpt {
+  color: #555;
+  line-height: 1.6;
+}
+
+.search-result-tags .tag {
+  display: inline-block;
+  padding: 0.25rem 0.5rem;
+  background: #e9ecef;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  color: #495057;
+  margin-right: 0.5rem;
+  margin-bottom: 0.25rem;
+}
+
+.search-result-category {
+  background: #007bff;
+  color: #fff;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.8rem;
+}
+
+.no-results {
+  text-align: center;
+  padding: 3rem;
+  color: #999;
+}
+
+.search-highlight {
+  background: #fff3cd;
+  padding: 0 2px;
+  border-radius: 2px;
+}
+</style>
+
+<script src="/assets/search.js"></script>
+<script>
+(function() {
+  // 等待搜索数据加载
+  var checkSearchData = setInterval(function() {
+    if (window.TEXT_SEARCH_DATA) {
+      clearInterval(checkSearchData);
+      initSearch();
+    }
+  }, 100);
+
+  // 设置超时，防止无限等待
+  setTimeout(function() {
+    clearInterval(checkSearchData);
+    if (!window.TEXT_SEARCH_DATA) {
+      document.getElementById('search-results').innerHTML = '<div class="no-results"><p>搜索数据正在加载，请稍后...</p><p>如果搜索数据没有加载，请尝试刷新页面。</p></div>';
+    }
+  }, 5000);
+
+  function initSearch() {
+    var searchInput = document.getElementById('search-input');
+    var searchClear = document.getElementById('search-clear');
+    var searchResults = document.getElementById('search-results');
+    var searchData = window.TEXT_SEARCH_DATA;
+
+    console.log('搜索数据已加载:', searchData);
+
+    // 搜索函数
+    function search(query) {
+      query = query.toLowerCase().trim();
+
+      if (!query) {
+        searchResults.innerHTML = '<p style="color: #999; text-align: center; padding: 2rem;">请输入关键词开始搜索</p>';
+        searchClear.style.display = 'none';
+        return;
+      }
+
+      searchClear.style.display = 'block';
+
+      var results = [];
+      var collections = Object.keys(searchData);
+
+      collections.forEach(function(collection) {
+        var articles = searchData[collection] || [];
+        articles.forEach(function(article) {
+          var title = (article.title || '').toLowerCase();
+          var excerpt = (article.excerpt || '').toLowerCase();
+          var tags = (article.tags || []).join(' ').toLowerCase();
+          var categories = (article.categories || []).join(' ').toLowerCase();
+          var content = (article.search_text || '').toLowerCase();
+
+          // 搜索标题、摘要、标签、分类和内容
+          if (title.indexOf(query) !== -1 || 
+              excerpt.indexOf(query) !== -1 ||
+              tags.indexOf(query) !== -1 ||
+              categories.indexOf(query) !== -1 ||
+              content.indexOf(query) !== -1) {
+            
+            results.push({
+              title: article.title || '无标题',
+              url: article.url,
+              collection: collection,
+              excerpt: article.excerpt || excerpt || '暂无摘要',
+              date: article.date || '',
+              tags: article.tags || [],
+              categories: article.categories || [],
+              author: article.author || ''
+            });
+          }
+        });
+      });
+
+      displayResults(results, query);
+    }
+
+    // 显示搜索结果
+    function displayResults(results, query) {
+      if (results.length === 0) {
+        searchResults.innerHTML = '<div class="no-results"><i class="fas fa-search" style="font-size: 3rem; margin-bottom: 1rem;"></i><p>没有找到与 "<strong>' + escapeHtml(query) + '</strong>" 相关的内容</p></div>';
+        return;
+      }
+
+      var html = '<p style="color: #666; margin-bottom: 1.5rem;">找到 ' + results.length + ' 个相关结果</p>';
+
+      results.forEach(function(result) {
+        var highlightedTitle = highlightText(result.title, query);
+        var highlightedExcerpt = highlightText(result.excerpt, query);
+        
+        var metaHtml = '';
+        if (result.date) {
+          metaHtml += '<span><i class="far fa-calendar-alt"></i> ' + escapeHtml(result.date) + '</span>';
+        }
+        if (result.author) {
+          metaHtml += '<span><i class="far fa-user"></i> ' + escapeHtml(result.author) + '</span>';
+        }
+        
+        var tagsHtml = '';
+        if (result.tags && result.tags.length > 0) {
+          tagsHtml = '<div class="search-result-tags">';
+          result.tags.forEach(function(tag) {
+            tagsHtml += '<span class="tag">' + escapeHtml(tag) + '</span>';
+          });
+          tagsHtml += '</div>';
+        }
+
+        html += '<div class="search-result-item">' +
+          '<div class="search-result-title"><a href="' + escapeHtml(result.url) + '">' + highlightedTitle + '</a></div>' +
+          '<div class="search-result-meta">' + metaHtml + '</div>' +
+          '<div class="search-result-excerpt">' + highlightedExcerpt + '</div>' +
+          tagsHtml +
+        '</div>';
+      });
+
+      searchResults.innerHTML = html;
+    }
+
+    // 高亮关键词
+    function highlightText(text, query) {
+      if (!text) return '';
+      var escapedQuery = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      var regex = new RegExp('(' + escapedQuery + ')', 'gi');
+      return text.replace(regex, '<span class="search-highlight">$1</span>');
+    }
+
+    // HTML 转义
+    function escapeHtml(text) {
+      var div = document.createElement('div');
+      div.textContent = text || '';
+      return div.innerHTML;
+    }
+
+    // 搜索输入事件
+    var searchTimeout;
+    searchInput.addEventListener('input', function() {
+      clearTimeout(searchTimeout);
+      searchTimeout = setTimeout(function() {
+        search(searchInput.value);
+      }, 300);
+    });
+
+    // 回车搜索
+    searchInput.addEventListener('keypress', function(e) {
+      if (e.key === 'Enter') {
+        search(searchInput.value);
+      }
+    });
+
+    // 清空按钮
+    searchClear.addEventListener('click', function() {
+      searchInput.value = '';
+      searchInput.focus();
+      search('');
+    });
+
+    // 页面加载时检查 URL 中的搜索参数
+    var urlParams = new URLSearchParams(window.location.search);
+    var searchQuery = urlParams.get('q');
+    if (searchQuery) {
+      searchInput.value = decodeURIComponent(searchQuery);
+      search(searchInput.value);
+    }
+  }
+})();
+</script>
